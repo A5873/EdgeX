@@ -1,0 +1,207 @@
+name: Logo Assets Validation
+
+on:
+  push:
+    paths:
+      - 'docs/assets/logo/**'
+      - '.github/workflows/logo-assets-validation.yml'
+  pull_request:
+    paths:
+      - 'docs/assets/logo/**'
+      - '.github/workflows/logo-assets-validation.yml'
+
+jobs:
+  svg-validation:
+    name: Validate SVG Assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm install -g svglint svg-validator colornames
+
+      - name: Check SVG Format and Structure
+        run: |
+          echo "Validating SVG format and structure..."
+          find docs/assets/logo/svg -name "*.svg" -type f -exec svglint {} \;
+          if [ $? -ne 0 ]; then
+            echo "::error::SVG validation failed. Please ensure all SVG files are properly formatted."
+            exit 1
+          fi
+
+      - name: Validate SVG Viewbox and Dimensions
+        run: |
+          echo "Validating SVG viewBox and dimensions..."
+          for file in $(find docs/assets/logo/svg -name "*.svg" -type f); do
+            component=$(echo $file | grep -o -E '(symbol|wordmark|full)')
+            
+            if [[ "$component" == "full" ]]; then
+              expected_viewbox="0 0 300 100"
+            elif [[ "$component" == "symbol" ]]; then
+              expected_viewbox="0 0 64 64"
+            elif [[ "$component" == "wordmark" ]]; then
+              expected_viewbox="0 0 200 50"
+            fi
+            
+            actual_viewbox=$(grep -o 'viewBox="[^"]*"' $file | sed 's/viewBox="//' | sed 's/"//')
+            
+            if [[ "$actual_viewbox" != "$expected_viewbox" ]]; then
+              echo "::error::File $file has incorrect viewBox: $actual_viewbox. Expected: $expected_viewbox"
+              exit 1
+            fi
+          done
+          echo "All SVG viewBox dimensions are correct."
+
+      - name: Validate SVG Colors
+        run: |
+          echo "Validating SVG color values..."
+          for file in $(find docs/assets/logo/svg -name "*_color.svg" -type f); do
+            if ! grep -q "#0B2447" $file; then
+              echo "::error::File $file is missing Deep Quantum Blue (#0B2447)"
+              exit 1
+            fi
+            
+            if [[ "$file" == *"symbol"* ]] && ! grep -q "#19A7CE" $file; then
+              echo "::error::Symbol file $file is missing Edge Teal (#19A7CE)"
+              exit 1
+            fi
+          done
+          
+          for file in $(find docs/assets/logo/svg -name "*_reversed.svg" -type f); do
+            if ! grep -q "#F8FAFC" $file && ! grep -q "#FFFFFF" $file && ! grep -q "white" $file; then
+              echo "::error::Reversed file $file is missing white color (#F8FAFC or #FFFFFF)"
+              exit 1
+            fi
+          done
+          echo "All SVG color values are correct."
+
+  file-naming-validation:
+    name: Validate File Naming Conventions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Check SVG File Naming
+        run: |
+          echo "Validating SVG file naming conventions..."
+          for file in $(find docs/assets/logo/svg -name "*.svg" -type f); do
+            basename=$(basename $file)
+            
+            # Check if file follows the naming convention
+            if ! [[ $basename =~ ^edgex_(symbol|wordmark|full)_(color|reversed)\.svg$ ]]; then
+              echo "::error::File $file does not follow naming convention: edgex_[component]_[color-variant].svg"
+              exit 1
+            fi
+            
+            # Check if file is in the correct directory
+            component=$(echo $basename | grep -o -E '(symbol|wordmark|full)')
+            directory=$(dirname $file | xargs basename)
+            
+            if [[ "$directory" != "$component" ]]; then
+              echo "::error::File $file is in the wrong directory. Should be in $component/"
+              exit 1
+            fi
+          done
+          echo "All SVG files follow the naming convention."
+
+  directory-structure-validation:
+    name: Validate Directory Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Check Directory Structure
+        run: |
+          echo "Validating directory structure..."
+          
+          # Check if all required directories exist
+          required_dirs=(
+            "docs/assets/logo/svg/full"
+            "docs/assets/logo/svg/symbol"
+            "docs/assets/logo/svg/wordmark"
+            "docs/assets/logo/png/full"
+            "docs/assets/logo/png/symbol"
+            "docs/assets/logo/png/wordmark"
+            "docs/assets/logo/ai/full"
+            "docs/assets/logo/ai/symbol"
+            "docs/assets/logo/ai/wordmark"
+          )
+          
+          for dir in "${required_dirs[@]}"; do
+            if [ ! -d "$dir" ]; then
+              echo "::error::Required directory $dir does not exist"
+              exit 1
+            fi
+          done
+          
+          # Check if all required documentation files exist
+          required_docs=(
+            "docs/assets/logo/README.md"
+            "docs/assets/logo/svg/README.md"
+            "docs/assets/logo/png/README.md"
+            "docs/assets/logo/ai/README.md"
+            "docs/assets/logo/PNG_GENERATION.md"
+          )
+          
+          for doc in "${required_docs[@]}"; do
+            if [ ! -f "$doc" ]; then
+              echo "::error::Required documentation file $doc does not exist"
+              exit 1
+            fi
+          done
+          
+          echo "Directory structure is valid."
+
+  svg-files-validation:
+    name: Validate SVG Files Existence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Check Required SVG Files
+        run: |
+          echo "Checking for required SVG files..."
+          
+          required_svgs=(
+            "docs/assets/logo/svg/full/edgex_full_color.svg"
+            "docs/assets/logo/svg/full/edgex_full_reversed.svg"
+            "docs/assets/logo/svg/symbol/edgex_symbol_color.svg"
+            "docs/assets/logo/svg/symbol/edgex_symbol_reversed.svg"
+            "docs/assets/logo/svg/wordmark/edgex_wordmark_color.svg"
+            "docs/assets/logo/svg/wordmark/edgex_wordmark_reversed.svg"
+          )
+          
+          for svg in "${required_svgs[@]}"; do
+            if [ ! -f "$svg" ]; then
+              echo "::error::Required SVG file $svg does not exist"
+              exit 1
+            fi
+          done
+          
+          echo "All required SVG files exist."
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [svg-validation, file-naming-validation, directory-structure-validation, svg-files-validation]
+    steps:
+      - name: Summarize Results
+        run: |
+          echo "🎉 All logo asset validations passed successfully!"
+          echo "✅ SVG format and structure validation"
+          echo "✅ File naming convention checks"
+          echo "✅ Directory structure validation"
+          echo "✅ Required files verification"
+          echo "✅ Color value validation"
+
