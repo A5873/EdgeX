@@ -1,0 +1,83 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.lib
+*.exe
+*.out
+*.app
+*.ko
+*.elf
+*.bin
+*.img
+*.iso
+
+# C build directories
+build/
+obj/
+bin/
+lib/
+Debug/
+Release/
+
+# Rust specific
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Generated files
+generated/
+*.gen.*
+*.gen
+autogen/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+*.sublime-workspace
+*.sublime-project
+
+# Kernel specific
+System.map
+vmlinux
+*.dtb
+*.dtbo
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+*.temp
+
+# Debugging files
+core
+*.sym
+*.debug
+
+# Config files that might contain secrets
+*.config.local
+*.env
+.env*
+!.env.example
+
+# Documentation build output
+docs/_build/
+
