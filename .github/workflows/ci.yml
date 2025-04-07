@@ -1,0 +1,179 @@
+name: EdgeX CI
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+env:
+  CACHE_VERSION: 1
+
+jobs:
+  build:
+    name: Build EdgeX
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        arch: [x86_64, arm64, riscv64]
+        include:
+          - arch: x86_64
+            cross_compiler: x86_64-elf-gcc
+            qemu: qemu-system-x86_64
+            grub: x86_64-elf-grub
+          - arch: arm64
+            cross_compiler: aarch64-elf-gcc
+            qemu: qemu-system-aarch64
+            grub: aarch64-elf-grub
+          - arch: riscv64
+            cross_compiler: riscv64-elf-gcc
+            qemu: qemu-system-riscv64
+            grub: riscv64-elf-grub
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Build Dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential xorriso
+          # Install cross-compilers based on architecture
+          if [[ "${{ matrix.arch }}" == "x86_64" ]]; then
+            sudo apt-get install -y gcc-x86-64-linux-gnu qemu-system-x86 grub-pc-bin
+          elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu qemu-system-arm grub-efi-arm64-bin
+          elif [[ "${{ matrix.arch }}" == "riscv64" ]]; then
+            sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv64
+            # For RISC-V, we might need special handling for GRUB
+            # This is a placeholder - actual commands may vary
+            # sudo apt-get install -y grub-riscv64-bin
+          fi
+
+      - name: Setup Build Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install make xorriso
+          # Install cross-compilers based on architecture
+          if [[ "${{ matrix.arch }}" == "x86_64" ]]; then
+            brew install x86_64-elf-gcc qemu x86_64-elf-grub
+          elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
+            brew install aarch64-elf-gcc qemu
+            # Handle GRUB for ARM64 on macOS
+          elif [[ "${{ matrix.arch }}" == "riscv64" ]]; then
+            brew install riscv-gnu-toolchain qemu
+            # Handle GRUB for RISC-V on macOS
+          fi
+
+      - name: Cache Build Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/build-deps
+            ~/.ccache
+          key: ${{ runner.os }}-${{ matrix.arch }}-build-deps-${{ env.CACHE_VERSION }}-${{ hashFiles('**/*.mk', 'Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-build-deps-${{ env.CACHE_VERSION }}-
+
+      - name: Configure ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: ${{ runner.os }}-${{ matrix.arch }}
+          max-size: 500M
+
+      - name: Build EdgeX
+        run: |
+          make ARCH=${{ matrix.arch }} all
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          CCACHE_COMPRESS: 1
+          CCACHE_MAXSIZE: 500M
+
+      - name: Run Tests
+        run: |
+          make ARCH=${{ matrix.arch }} test
+
+      - name: Generate ISO
+        run: |
+          make ARCH=${{ matrix.arch }} iso
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: edgex-${{ matrix.arch }}
+          path: |
+            build/bin/*
+            !build/bin/*.o
+            !build/bin/*.d
+
+      - name: Upload ISO Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: edgex-iso-${{ matrix.arch }}
+          path: |
+            build/iso/*.iso
+
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/edgex-iso-*/build/iso/*.iso
+            artifacts/edgex-*/build/bin/*
+          draft: false
+          prerelease: contains(github.ref, '-rc') || contains(github.ref, '-alpha') || contains(github.ref, '-beta')
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  badges:
+    name: Update Status Badges
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create Build Status Badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: YOUR_GIST_ID_HERE # Replace with actual Gist ID for badge storage
+          filename: edgex-build.json
+          label: build
+          message: passing
+          color: green
+          
+      - name: Create Test Status Badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: YOUR_GIST_ID_HERE # Replace with actual Gist ID for badge storage
+          filename: edgex-tests.json
+          label: tests
+          message: passing
+          color: green
+
