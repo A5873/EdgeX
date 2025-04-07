@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: EdgeX Documentation
+    url: https://github.com/edgex/edgex/docs
+    about: Please check our documentation first to see if your question is already answered.
+  - name: EdgeX Discord
+    url: https://discord.gg/edgex
+    about: Join our Discord server for community discussions and real-time support.
+  - name: EdgeX Developer Mailing List
+    url: mailto:dev@edgex.io
+    about: Subscribe to our mailing list for announcements and discussions.
+
