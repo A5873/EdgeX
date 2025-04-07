@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" width="200" height="50">
+  <title>EdgeX Wordmark</title>
+  <metadata>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+             xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <rdf:Description>
+        <dc:title>EdgeX Wordmark</dc:title>
+        <dc:creator>EdgeX Project</dc:creator>
+        <dc:description>Official EdgeX wordmark</dc:description>
+      </rdf:Description>
+    </rdf:RDF>
+  </metadata>
+  <defs>
+    <style>
+      .wordmark {
+        fill: #0B2447;
+      }
+    </style>
+  </defs>
+  
+  <g id="wordmark" class="wordmark">
+    <!-- Uppercase E -->
+    <path d="M20,10 H45 V16 H26 V25 H40 V31 H26 V40 H45 V46 H20 V10 Z" />
+    
+    <!-- lowercase d -->
+    <path d="M58,12 V46 H64 V38 C66,40 69,42 73,42 C81,42 88,36 88,26 C88,16 81,10 73,10 C69,10 66,12 64,14 V12 H58 Z M72,16 C77,16 81,20 81,26 C81,32 77,36 72,36 C67,36 63,32 63,26 C63,20 67,16 72,16 Z" />
+    
+    <!-- lowercase g -->
+    <path d="M102,14 C99,12 96,10 91,10 C83,10 76,16 76,26 C76,36 83,42 91,42 C96,42 99,40 102,38 V40 H108 V26 C108,14 102,10 94,10 C90,10 87,11 84,13 L86,18 C88,17 90,16 93,16 C98,16 102,18 102,26 V26 Z M92,16 C97,16 101,20 101,26 C101,32 97,36 92,36 C87,36 83,32 83,26 C83,20 87,16 92,16 Z" />
+    
+    <!-- lowercase e -->
+    <path d="M121,10 C113,10 107,16 107,26 C107,36 113,42 122,42 C126,42 129,41 132,39 L130,34 C128,35 125,36 122,36 C118,36 114,34 113,30 H134 C134,16 129,10 121,10 Z M121,16 C125,16 128,18 128,25 H113 C114,20 117,16 121,16 Z" />
+    
+    <!-- Modified lowercase x -->
+    <path d="M150,11 L138,26 L150,41 H143 L135,31 L127,41 H120 L132,26 L120,11 H127 L135,21 L143,11 H150 Z" />
+  </g>
+</svg>
+
