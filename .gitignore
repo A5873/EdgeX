@@ -1,3 +1,70 @@
+# Personal tracking and project management files
+PROGRESS.md
+progress_tracker.sh
+requirements_report.md
+.progress_tmp/
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Generated files
+build/
+dist/
+bin/
+obj/
+target/
+
+# Dependency directories
+node_modules/
+vendor/
+.deps/
+.libs/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
 # Build artifacts
 *.o
 *.a
