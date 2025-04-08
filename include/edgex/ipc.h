@@ -1,7 +1,12 @@
-int send_message(message_queue_t queue, message_t* message, uint32_t flags);
-int receive_message(message_queue_t queue, message_t* message, uint32_t flags);
-int reply_to_message(message_t* original, message_t* reply, uint32_t flags);
+/*
+ * EdgeX OS - Inter-Process Communication
+ *
+ * This file defines the interface for inter-process communication,
+ * including message passing, synchronization primitives, and shared memory.
+ */
 
+#ifndef EDGEX_IPC_H
+#define EDGEX_IPC_H
 /*
  * Synchronization Primitives
  */

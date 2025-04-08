@@ -12,10 +12,16 @@
 #include <edgex/interrupt.h>
 #include <edgex/memory.h>
 
-/* Task/Process ID type */
-typedef uint32_t pid_t;
-
-/* Special PID values */
+/* Forward declaration for page directory type */
+#ifndef __page_directory_t_defined
+#define __page_directory_t_defined
+/* Page directory type for memory management */
+typedef struct {
+    uint64_t* entries;         /* Pointer to page directory entries */
+    uint64_t physical_addr;    /* Physical address of page directory */
+    uint32_t ref_count;        /* Reference count */
+} page_directory_t;
+#endif
 #define PID_INVALID 0
 #define PID_KERNEL  1
 

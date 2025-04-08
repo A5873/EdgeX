@@ -16,6 +16,7 @@ SYNC_DIR  := $(SRC_DIR)/sync
 LIBC_DIR  := $(SRC_DIR)/libc
 INCLUDE_DIR := $(SRC_DIR)/include
 TOOLS_DIR := $(SRC_DIR)/tools
+TESTS_DIR := $(SRC_DIR)/tests
 
 # Output directories
 BUILD_DIR := build/$(ARCH)/$(BUILD)
@@ -23,10 +24,11 @@ OBJ_DIR   := $(BUILD_DIR)/obj
 BIN_DIR   := $(BUILD_DIR)/bin
 LIB_DIR   := $(BUILD_DIR)/lib
 ISO_DIR   := $(BUILD_DIR)/iso
+TEST_DIR  := $(BUILD_DIR)/test
 
 # Create output directories
-$(shell mkdir -p $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR) $(ISO_DIR))
-$(shell mkdir -p $(OBJ_DIR)/kernel $(OBJ_DIR)/boot $(OBJ_DIR)/crypto $(OBJ_DIR)/sync $(OBJ_DIR)/libc)
+$(shell mkdir -p $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR) $(ISO_DIR) $(TEST_DIR))
+$(shell mkdir -p $(OBJ_DIR)/kernel $(OBJ_DIR)/boot $(OBJ_DIR)/crypto $(OBJ_DIR)/sync $(OBJ_DIR)/libc $(OBJ_DIR)/tests)
 
 # Architecture-specific settings
 ifeq ($(ARCH),arm64)
@@ -62,11 +64,18 @@ STRIP   := $(CROSS_PREFIX)strip
 # Common flags
 INCLUDE_FLAGS := -I$(INCLUDE_DIR) -I$(SRC_DIR)
 
+# Test specific flags
+TEST_INCLUDE_FLAGS := $(INCLUDE_FLAGS) -I$(TESTS_DIR)
+
 # Warning flags (strict to maintain code quality)
 WARN_FLAGS := -Wall -Wextra -Werror -Wstrict-prototypes -Wold-style-definition \
               -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls \
               -Wnested-externs -Wshadow -Wundef -Wformat=2 -Wno-unused-parameter \
               -Wwrite-strings -Wno-unused-but-set-variable -Wno-missing-field-initializers
+
+# Test warning flags (more compatible across compiler versions)
+TEST_WARN_FLAGS := -Wall -Wextra -Werror -Wformat=2 -Wno-unused-parameter \
+                   -Wno-missing-field-initializers -Wwrite-strings
 
 # Security flags
 SECURITY_FLAGS := -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE
@@ -79,13 +88,20 @@ else
     OPTIMIZE_FLAGS := -O2 -DNDEBUG
 endif
 
+# Test optimization flags (always include debugging symbols)
+TEST_OPTIMIZE_FLAGS := -O0 -g3 -DDEBUG -DUNIT_TEST
 # Combine flags
 CFLAGS := $(ARCH_FLAGS) $(INCLUDE_FLAGS) $(WARN_FLAGS) $(SECURITY_FLAGS) $(OPTIMIZE_FLAGS) \
           -std=c11 -ffreestanding -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
           -fno-pic -mno-red-zone -mno-mmx -mno-sse -mno-sse2
 
+# Test flags (use standard libraries and include debugging info)
+TEST_CFLAGS := $(ARCH_FLAGS) $(TEST_INCLUDE_FLAGS) $(TEST_WARN_FLAGS) $(TEST_OPTIMIZE_FLAGS) \
+               -std=c11 -fPIC
+
 ASFLAGS := $(ARCH_FLAGS)
 LDFLAGS := -nostdlib -z max-page-size=0x1000
+TEST_LDFLAGS := -lpthread -lm
 
 # Source files
 KERNEL_SRCS := $(wildcard $(KERNEL_DIR)/*.c)
@@ -93,6 +109,10 @@ BOOT_SRCS := $(wildcard $(BOOT_DIR)/*.S) $(wildcard $(BOOT_DIR)/*.c)
 CRYPTO_SRCS := $(wildcard $(CRYPTO_DIR)/*.c)
 SYNC_SRCS := $(wildcard $(SYNC_DIR)/*.c)
 LIBC_SRCS := $(wildcard $(LIBC_DIR)/*.c)
+
+# Test source files (recursive wildcard function)
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+TEST_SRCS := $(call rwildcard,$(TESTS_DIR)/,*.c)
 
 # Object files
 KERNEL_OBJS := $(patsubst $(KERNEL_DIR)/%.c,$(OBJ_DIR)/kernel/%.o,$(KERNEL_SRCS))
@@ -102,6 +122,10 @@ CRYPTO_OBJS := $(patsubst $(CRYPTO_DIR)/%.c,$(OBJ_DIR)/crypto/%.o,$(CRYPTO_SRCS)
 SYNC_OBJS := $(patsubst $(SYNC_DIR)/%.c,$(OBJ_DIR)/sync/%.o,$(SYNC_SRCS))
 LIBC_OBJS := $(patsubst $(LIBC_DIR)/%.c,$(OBJ_DIR)/libc/%.o,$(LIBC_SRCS))
 
+# Test object files and binaries
+TEST_OBJS := $(patsubst $(TESTS_DIR)/%.c,$(OBJ_DIR)/tests/%.o,$(TEST_SRCS))
+TEST_BINS := $(patsubst $(TESTS_DIR)/%.c,$(TEST_DIR)/%.test,$(TEST_SRCS))
+
 # All objects
 OBJS := $(KERNEL_OBJS) $(BOOT_OBJS) $(CRYPTO_OBJS) $(SYNC_OBJS) $(LIBC_OBJS)
 
@@ -110,7 +134,7 @@ KERNEL_BIN := $(BIN_DIR)/edgex-kernel-$(ARCH)
 KERNEL_IMG := $(BIN_DIR)/edgex-kernel-$(ARCH).img
 
 # Targets
-.PHONY: all clean arm64 riscv x86_64 debug release run help
+.PHONY: all clean arm64 riscv x86_64 debug release run help build-tests run-tests
 
 all: $(KERNEL_BIN)
 
@@ -130,9 +154,18 @@ release:
 	@$(MAKE) BUILD=release
 
 # Build rules
-$(OBJ_DIR)/kernel/%.o: $(KERNEL_DIR)/%.c
-	@echo "CC $<"
-	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Test compilation rule
+$(OBJ_DIR)/tests/%.o: $(TESTS_DIR)/%.c
+	@echo "CC (test) $<"
+	@mkdir -p $(dir $@)
+	@$(CC) $(TEST_CFLAGS) -c $< -o $@
+
+# Test linking rule
+$(TEST_DIR)/%.test: $(OBJ_DIR)/tests/%.o
+	@echo "LD (test) $@"
+	@mkdir -p $(dir $@)
+	@$(CC) $< -o $@ $(TEST_LDFLAGS)
 
 $(OBJ_DIR)/boot/%.o: $(BOOT_DIR)/%.c
 	@echo "CC $<"
@@ -168,6 +201,22 @@ clean:
 	@rm -rf build/
 	@echo "Done."
 
+# Test targets
+build-tests: $(TEST_BINS)
+	@echo "Built $(words $(TEST_BINS)) test binaries"
+
+run-tests: build-tests
+	@echo "Running all unit tests..."
+	@for test in $(TEST_BINS); do \
+		echo "Running $$test..."; \
+		$$test; \
+		if [ $$? -ne 0 ]; then \
+			echo "Test $$test failed"; \
+			exit 1; \
+		fi; \
+	done
+	@echo "All tests passed!"
+
 # Run in QEMU
 run: $(KERNEL_BIN)
 	@echo "Running EdgeX OS in QEMU ($(ARCH))..."
@@ -187,6 +236,8 @@ help:
 	@echo "  debug      - Build with debug flags"
 	@echo "  release    - Build with release flags"
 	@echo "  run        - Run the kernel in QEMU"
+	@echo "  build-tests - Build all test binaries"
+	@echo "  run-tests  - Run all unit tests"
 	@echo "  help       - Display this help message"
 	@echo ""
 	@echo "Options:"
@@ -199,6 +250,8 @@ help:
 	@echo "  make run ARCH=riscv        - Build and run for RISC-V"
 	@echo "  make clean                 - Clean all build artifacts"
 	@echo "  make release ARCH=x86_64   - Build for x86_64 in release mode"
+	@echo "  make build-tests           - Build all test binaries"
+	@echo "  make run-tests             - Build and run all tests"
 
 # Default to help if no target is specified
 .DEFAULT_GOAL := help

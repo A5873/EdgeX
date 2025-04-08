@@ -74,7 +74,6 @@ void init_message_subsystem(void) {
 /*
  * Create a new message queue
  */
-message_queue_t create_message_queue(const char* name, uint32_t max_messages) {
     struct message_queue* queue;
     
     /* Check initialization */
@@ -374,31 +373,36 @@ int reply_to_message(message_t* original, message_t* reply, uint32_t flags) {
     
     /* Set up the reply message */
     reply->header.receiver = original->header.sender;
+    reply->header.sender = get_current_task_id();
     reply->header.type = MESSAGE_TYPE_RESPONSE;
     reply->header.priority = MESSAGE_PRIORITY_HIGH;  /* Replies are high priority by default */
+    reply->header.message_id = __atomic_fetch_add(&next_message_id, 1, __ATOMIC_SEQ_CST);
+    reply->header.timestamp = get_current_time_ms();
     
     /* Link this reply to the original message */
-    /* We use the original message ID to track the response */
-    uint32_t original_id = original->header.message_id;
+    reply->header.reply_id = original->header.message_id;
     
-    /* Find a queue to the target process */
-    message_queue_t target_queue = NULL;
-    mutex_lock(&global_message_lock);
-    for (uint32_t i = 0; i < num_message_queues; i++) {
-        if (message_queues[i] != NULL) {
-            /* Check if this queue belongs to or is accessible by the target process */
-            /* In a real system, we'd check queue ownership or permissions here */
-            target_queue = message_queues[i];
-            break;
-        }
-    }
-    mutex_unlock(&global_message_lock);
+    /* Find a queue belonging to the target task for receiving */
+    message_queue_t target_queue = find_task_queue(original->header.sender, QUEUE_LOOKUP_RECEIVE);
     
     if (target_queue == NULL) {
-        return -ENOENT;  /* No suitable queue found */
+        /* Fall back to the old lookup method if registry fails */
+        mutex_lock(&global_message_lock);
+        for (uint32_t i = 0; i < num_message_queues; i++) {
+            if (message_queues[i] != NULL) {
+                /* Just use the first queue we find - not ideal but better than nothing */
+                target_queue = message_queues[i];
+                break;
+            }
+        }
+        mutex_unlock(&global_message_lock);
+        
+        if (target_queue == NULL) {
+            return -ENOENT;  /* No suitable queue found */
+        }
     }
     
-    /* Send the reply with the original message ID for tracking */
+    /* Send the reply */
     return send_message(target_queue, reply, flags);
 }
 

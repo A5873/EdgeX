@@ -8,6 +8,14 @@
 #ifndef EDGEX_KERNEL_H
 #define EDGEX_KERNEL_H
 
+/* Include standard types when in unit test mode */
+#ifdef UNIT_TEST
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#define UNIT_TEST_DEFINITION 1
+#else
 /* Basic type definitions */
 typedef unsigned char      uint8_t;
 typedef unsigned short     uint16_t;
@@ -24,7 +32,12 @@ typedef uint8_t            bool;
 /* Boolean constants */
 #define true  1
 #define false 0
+#endif /* UNIT_TEST */
+
+/* Ensure NULL is defined */
+#ifndef NULL
 #define NULL  ((void*)0)
+#endif
 
 /* Kernel version information */
 #define EDGEX_VERSION_MAJOR 0
@@ -173,11 +186,13 @@ void kfree(void* ptr);
 void* vmalloc(size_t size);
 void vfree(void* ptr);
 
+#ifndef UNIT_TEST
+/* Memory manipulation functions - only when not in unit test mode */
 void* memset(void* s, int c, size_t n);
 void* memcpy(void* dest, const void* src, size_t n);
 int memcmp(const void* s1, const void* s2, size_t n);
 void* memmove(void* dest, const void* src, size_t n);
-
+#endif /* UNIT_TEST */
 /* Inline assembly wrapper */
 static inline void outb(uint16_t port, uint8_t value) {
     __asm__ volatile("outb %0, %1" : : "a"(value), "Nd"(port));
